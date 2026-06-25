@@ -116,6 +116,14 @@ interface SupabaseApiService {
     suspend fun saveLumoMessage(
         @Body message: SupabaseLumoMessage
     ): Response<Unit>
+
+    @POST("rest/v1/reports")
+    suspend fun saveReport(
+        @Body report: SupabaseReport
+    ): Response<Unit>
+
+    @GET("rest/v1/reports")
+    suspend fun getReports(): Response<List<SupabaseReport>>
 }
 
 object SupabaseClient {

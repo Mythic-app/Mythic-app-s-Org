@@ -27,6 +27,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.LumoConversationEntity
+import com.example.ui.components.GlassSurface
 import com.example.viewmodel.MythicViewModel
 import kotlinx.coroutines.launch
 
@@ -68,64 +69,68 @@ fun ChatScreen(
                 .padding(bottom = 88.dp)
         ) {
             // Header bar containing LUMO name and clear chats
-            Row(
+            GlassSurface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(if (isDark) Color(0xFF0D0D0D) else Color(0xFFF9F9F9))
-                    .padding(horizontal = 20.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        IconButton(
+                            onClick = onBack,
+                            modifier = Modifier.size(36.dp).testTag("chat_back_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = textPrimary
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(accentColor),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "🤖", fontSize = 20.sp)
+                        }
+                        Column {
+                            Text(
+                                text = "LUMO AI",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Black,
+                                    color = textPrimary
+                                )
+                            )
+                            Text(
+                                text = "Heritage Companion Guide",
+                                fontSize = 11.sp,
+                                color = textSecondary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    // Clear chat button
                     IconButton(
-                        onClick = onBack,
-                        modifier = Modifier.size(36.dp).testTag("chat_back_button")
+                        onClick = { viewModel.clearChat() },
+                        modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = textPrimary
+                            imageVector = Icons.Default.DeleteSweep,
+                            contentDescription = "Clear Chat",
+                            tint = textSecondary
                         )
                     }
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(accentColor),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = "🤖", fontSize = 20.sp)
-                    }
-                    Column {
-                        Text(
-                            text = "LUMO AI",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Black,
-                                color = textPrimary
-                            )
-                        )
-                        Text(
-                            text = "Heritage Companion Guide",
-                            fontSize = 11.sp,
-                            color = textSecondary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                // Clear chat button
-                IconButton(
-                    onClick = { viewModel.clearChat() },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.DeleteSweep,
-                        contentDescription = "Clear Chat",
-                        tint = textSecondary
-                    )
                 }
             }
 
@@ -263,67 +268,73 @@ fun ChatScreen(
             }
 
             // Input message box bar
-            Row(
+            GlassSurface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(16.dp)
             ) {
-                TextField(
-                    value = messageInput,
-                    onValueChange = { messageInput = it },
-                    placeholder = { Text("Ask LUMO about Sri Lankan history...") },
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(24.dp))
-                        .testTag("chat_input_field"),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = if (isDark) Color(0xFF121212) else Color(0xFFF0F0F0),
-                        unfocusedContainerColor = if (isDark) Color(0xFF121212) else Color(0xFFF0F0F0),
-                        disabledContainerColor = if (isDark) Color(0xFF121212) else Color(0xFFF0F0F0),
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    ),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(
-                        onSend = {
-                            if (messageInput.trim().isNotEmpty()) {
-                                val msg = messageInput
-                                messageInput = ""
-                                coroutineScope.launch {
-                                    viewModel.sendLumoMessage(msg)
-                                }
-                            }
-                        }
-                    ),
-                    singleLine = true
-                )
-
-                // Send button rounded
-                Box(
-                    modifier = Modifier
-                        .size(50.dp)
-                        .clip(CircleShape)
-                        .background(accentColor)
-                        .clickable {
-                            if (messageInput.trim().isNotEmpty()) {
-                                val msg = messageInput
-                                messageInput = ""
-                                coroutineScope.launch {
-                                    viewModel.sendLumoMessage(msg)
-                                }
-                            }
-                        }
-                        .testTag("chat_send_button"),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Send Message",
-                        tint = Color.Black,
-                        modifier = Modifier.size(20.dp)
+                    TextField(
+                        value = messageInput,
+                        onValueChange = { messageInput = it },
+                        placeholder = { Text("Ask LUMO about Sri Lankan history...") },
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(24.dp))
+                            .testTag("chat_input_field"),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        ),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                        keyboardActions = KeyboardActions(
+                            onSend = {
+                                if (messageInput.trim().isNotEmpty()) {
+                                    val msg = messageInput
+                                    messageInput = ""
+                                    coroutineScope.launch {
+                                        viewModel.sendLumoMessage(msg)
+                                    }
+                                }
+                            }
+                        ),
+                        singleLine = true
                     )
+
+                    // Send button rounded
+                    Box(
+                        modifier = Modifier
+                            .size(50.dp)
+                            .clip(CircleShape)
+                            .background(accentColor)
+                            .clickable {
+                                if (messageInput.trim().isNotEmpty()) {
+                                    val msg = messageInput
+                                    messageInput = ""
+                                    coroutineScope.launch {
+                                        viewModel.sendLumoMessage(msg)
+                                    }
+                                }
+                            }
+                            .testTag("chat_send_button"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Send Message",
+                            tint = Color.Black,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }

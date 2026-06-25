@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import com.example.data.remote.GeminiInlineData
+import com.example.data.remote.SupabaseReport
 import org.json.JSONObject
 
 class MythicViewModel(application: Application) : AndroidViewModel(application) {
@@ -405,6 +406,23 @@ class MythicViewModel(application: Application) : AndroidViewModel(application) 
     fun triggerArticleLike() {
         viewModelScope.launch {
             repository.incrementQuestProgress("like")
+        }
+    }
+
+    private val _recentReports = MutableStateFlow<List<SupabaseReport>>(emptyList())
+    val recentReports: StateFlow<List<SupabaseReport>> = _recentReports
+
+    // --- REPORTING ---
+    fun submitReport(report: SupabaseReport) {
+        viewModelScope.launch {
+            repository.submitReport(report)
+            fetchRecentReports()
+        }
+    }
+
+    fun fetchRecentReports() {
+        viewModelScope.launch {
+            _recentReports.value = repository.getRecentReports()
         }
     }
 

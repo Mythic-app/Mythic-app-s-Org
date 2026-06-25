@@ -764,6 +764,30 @@ class MythicRepository(context: Context) :
         dao.clearScanHistory()
     }
 
+    // --- REPORTS ---
+    suspend fun submitReport(report: SupabaseReport) = withContext(Dispatchers.IO) {
+        if (SupabaseClient.isConfigured) {
+            try {
+                SupabaseClient.service.saveReport(report)
+            } catch (e: Exception) {
+                Log.e("MythicRepository", "Supabase report save failed", e)
+            }
+        }
+    }
+
+    suspend fun getRecentReports(): List<SupabaseReport> = withContext(Dispatchers.IO) {
+        if (SupabaseClient.isConfigured) {
+            try {
+                SupabaseClient.service.getReports().body() ?: emptyList()
+            } catch (e: Exception) {
+                Log.e("MythicRepository", "Supabase reports fetch failed", e)
+                emptyList()
+            }
+        } else {
+            emptyList()
+        }
+    }
+
     // --- LUMO COMPANION CHAT ---
     suspend fun sendLumoMessage(userMessageContent: String): String = withContext(Dispatchers.IO) {
         val userId = _currentUser.value?.id ?: "guest"

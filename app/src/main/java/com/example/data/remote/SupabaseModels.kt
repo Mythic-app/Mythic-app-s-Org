@@ -99,3 +99,23 @@ data class SupabaseLumoMessage(
     val role: String,
     val content: String
 )
+
+@JsonClass(generateAdapter = true)
+data class SupabaseReport(
+    val id: String?,
+    @Json(name = "user_id") val userId: String,
+    @Json(name = "content_id") val contentId: String,
+    val reason: String,
+    val priority: Float = 0.5f,
+    val status: String = "pending",
+    @Json(name = "created_at") val createdAt: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class SupabaseContentUpload(
+    val id: String?,
+    @Json(name = "user_id") val userId: String,
+    @Json(name = "file_url") val fileUrl: String,
+    val status: String = "pending",
+    @Json(name = "created_at") val createdAt: String?
+)

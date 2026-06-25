@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.ui.components.GlassSurface
 import com.example.viewmodel.MythicViewModel
 
 @Composable
@@ -126,23 +127,8 @@ fun HomeScreen(
 
             // Level and XP Section
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(
-                            width = 1.dp,
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.2f),
-                                    Color.White.copy(alpha = 0.05f)
-                                )
-                            ),
-                            shape = RoundedCornerShape(24.dp)
-                        ),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isDark) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.04f)
-                    ),
-                    shape = RoundedCornerShape(24.dp)
+                GlassSurface(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(18.dp)) {
                         Row(
@@ -466,14 +452,8 @@ fun HomeScreen(
                 }
             } else {
                 items(scanHistory.take(2)) { scan ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(1.dp, if (isDark) Color(0x33FFFFFF) else Color.Transparent, RoundedCornerShape(16.dp)),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isDark) Color(0xFF111111) else Color(0xFFF5F5F5)
-                        ),
-                        shape = RoundedCornerShape(16.dp)
+                    GlassSurface(
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier

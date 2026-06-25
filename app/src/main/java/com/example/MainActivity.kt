@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,6 +23,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -31,13 +33,19 @@ import coil.compose.AsyncImage
 import com.example.ui.screens.*
 import com.example.ui.theme.MythicTheme
 import com.example.viewmodel.MythicViewModel
+import com.example.ui.components.AppBackground
+import com.example.ui.components.GlassCard
+import com.example.ui.components.GlassSurface
+import com.example.ui.screens.AIScreen
+import com.example.ui.screens.SettingsScreen
+import com.example.R
 
 enum class Screen {
-    SPLASH, AUTH, MAIN, CHAT, AR_EXPLORE
+    SPLASH, AUTH, MAIN, CHAT, AR_EXPLORE, SETTINGS, ADMIN
 }
 
 enum class Tab {
-    HOME, FEED, SCAN, QUESTS, PROFILE
+    HOME, FEED, AI, SCAN, QUESTS, PROFILE, REPORT
 }
 
 class MainActivity : ComponentActivity() {
@@ -49,7 +57,8 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MythicTheme {
-                var currentScreen by remember { mutableStateOf(Screen.SPLASH) }
+                AppBackground {
+                    var currentScreen by remember { mutableStateOf(Screen.SPLASH) }
                 var currentTab by remember { mutableStateOf(Tab.HOME) }
 
                 val currentUser by viewModel.currentUser.collectAsState()
@@ -62,6 +71,7 @@ class MainActivity : ComponentActivity() {
                 // Navigation router
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
+                    containerColor = Color.Transparent,
                     bottomBar = {
                         if (currentScreen == Screen.MAIN) {
                             BottomNavBar(
@@ -117,12 +127,14 @@ class MainActivity : ComponentActivity() {
                                         onNavigateToLumo = { currentScreen = Screen.CHAT }
                                     )
                                     Tab.FEED -> FeedScreen(viewModel = viewModel)
+                                    Tab.AI -> AIScreen(viewModel = viewModel)
                                     Tab.SCAN -> ScanScreen(viewModel = viewModel)
                                     Tab.QUESTS -> QuestsScreen(viewModel = viewModel)
                                     Tab.PROFILE -> ProfileScreen(
                                         viewModel = viewModel,
                                         onLogoutSuccess = { currentScreen = Screen.AUTH }
                                     )
+                                    Tab.REPORT -> ReportScreen(viewModel = viewModel)
                                 }
                             }
                             Screen.CHAT -> {
@@ -133,7 +145,20 @@ class MainActivity : ComponentActivity() {
                             }
                             Screen.AR_EXPLORE -> {
                                 ARScreen(
+                                    viewModel = viewModel,
                                     onDismiss = { currentScreen = Screen.MAIN }
+                                )
+                            }
+                            Screen.SETTINGS -> {
+                                SettingsScreen(
+                                    viewModel = viewModel,
+                                    onBack = { currentScreen = Screen.MAIN }
+                                )
+                            }
+                            Screen.ADMIN -> {
+                                AdminDashboardScreen(
+                                    viewModel = viewModel,
+                                    onBack = { currentScreen = Screen.MAIN }
                                 )
                             }
                         }
@@ -142,13 +167,10 @@ class MainActivity : ComponentActivity() {
                         if (showScanResultDialog && scanResult != null) {
                             val scan = scanResult!!
                             Dialog(onDismissRequest = { viewModel.dismissScanResult() }) {
-                                Card(
+                                GlassCard(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(16.dp)
-                                        .border(2.dp, Color(0xFF9AF04D), RoundedCornerShape(32.dp)),
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF111111)),
-                                    shape = RoundedCornerShape(32.dp)
                                 ) {
                                     Column(
                                         modifier = Modifier.padding(24.dp),
@@ -249,8 +271,8 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
-                }
-            }
+                } // Scaffold close
+            } // AppBackground close
         }
     }
 }
@@ -268,8 +290,8 @@ fun SplashScreen(
             .background(Color.Black)
     ) {
         // Hero background image
-        AsyncImage(
-            model = "https://images.unsplash.com/photo-1588598126781-db26040a4cfc?w=1200",
+        Image(
+            painter = painterResource(id = R.drawable.sigiriya_splash_1782327284271),
             contentDescription = "Sigiriya Hero",
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
@@ -401,20 +423,20 @@ fun BottomNavBar(
             val isSelected = currentTab == tab
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp), // Smaller spacing
                 modifier = Modifier
                     .clickable { onTabSelected(tab) }
-                    .padding(8.dp)
+                    .padding(4.dp) // Smaller padding
                     .testTag("nav_tab_${label.lowercase()}")
             ) {
                 Text(
                     text = icon,
-                    fontSize = 20.sp,
+                    fontSize = 16.sp, // Smaller font
                     color = if (isSelected) accentColor else Color.Gray
                 )
                 Text(
                     text = label,
-                    fontSize = 10.sp,
+                    fontSize = 8.sp, // Smaller font
                     fontWeight = FontWeight.Bold,
                     color = if (isSelected) accentColor else Color.Gray
                 )
@@ -423,11 +445,12 @@ fun BottomNavBar(
 
         navItem(Tab.HOME, "🏠", "Home")
         navItem(Tab.FEED, "📰", "Feed")
+        navItem(Tab.AI, "⚡", "AI")
 
         // Glowing Scan button centered and highlighted
         Box(
             modifier = Modifier
-                .offset(y = (-16).dp)
+                .offset(y = (-12).dp) // Adjusted offset
                 .clickable { onTabSelected(Tab.SCAN) }
                 .testTag("nav_tab_scan"),
             contentAlignment = Alignment.Center
@@ -435,18 +458,18 @@ fun BottomNavBar(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(
                     modifier = Modifier
-                        .size(60.dp)
+                        .size(50.dp) // Smaller size
                         .clip(CircleShape)
                         .background(accentColor)
                         .border(4.dp, if (isDark) Color.Black else Color.White, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = "📷", fontSize = 24.sp, color = Color.Black)
+                    Text(text = "📷", fontSize = 20.sp, color = Color.Black)
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "Scan",
-                    fontSize = 10.sp,
+                    fontSize = 8.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (currentTab == Tab.SCAN) accentColor else Color.Gray
                 )
@@ -455,6 +478,7 @@ fun BottomNavBar(
 
         navItem(Tab.QUESTS, "🎯", "Quests")
         navItem(Tab.PROFILE, "👤", "Profile")
+        navItem(Tab.REPORT, "⚠️", "Report")
     }
 }
 }
@@ -497,4 +521,5 @@ fun FloatingLumoButton(
         )
         Text(text = "⚡", fontSize = 24.sp)
     }
+}
 }
