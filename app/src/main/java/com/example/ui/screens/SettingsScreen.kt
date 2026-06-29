@@ -3,6 +3,8 @@ package com.example.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -18,11 +20,14 @@ fun SettingsScreen(
     var notificationsEnabled by remember { mutableStateOf(true) }
     var locationTrackingEnabled by remember { mutableStateOf(true) }
 
+    val scrollState = rememberScrollState()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
             .padding(top = 40.dp)
+            .verticalScroll(scrollState)
     ) {
         Text(
             text = "Settings",
@@ -60,10 +65,38 @@ fun SettingsScreen(
         
         Spacer(modifier = Modifier.height(24.dp))
         
-        Text(text = "Our Team", color = Color.White, style = MaterialTheme.typography.titleMedium)
+        Text(text = "App Credits", color = Color.White, style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "Lead Developer: [Name]", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
-        Text(text = "Designer: [Name]", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+        CreditItem(role = "Leader", name = "Senuja")
+        CreditItem(role = "Sub Leader", name = "Meshark")
+        CreditItem(role = "Head Design", name = "Abilash")
+        CreditItem(role = "Head Coder", name = "Maleesha")
+        CreditItem(role = "Head Implementor", name = "Gavinda")
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = "Special Thanks", color = Color.White, style = MaterialTheme.typography.titleSmall)
+        Text(text = "Sasan Vidunitha, Anuki, Senusha", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = "Special Thanks to Teachers", color = Color.White, style = MaterialTheme.typography.titleSmall)
+        Text(text = "Sachindra Teacher, Oshandi Teacher, Savindra Teacher", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = "Our Principal", color = Color.White, style = MaterialTheme.typography.titleSmall)
+        Text(text = "Dr. Anushke Perera", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+        
+        Spacer(modifier = Modifier.height(32.dp))
+    }
+}
+
+@Composable
+fun CreditItem(role: String, name: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(text = "$role:", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+        Text(text = name, color = Color.White, style = MaterialTheme.typography.bodySmall)
     }
 }
 
