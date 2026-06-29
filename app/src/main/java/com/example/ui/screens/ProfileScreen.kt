@@ -1,5 +1,8 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -8,6 +11,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
@@ -48,7 +53,15 @@ fun ProfileScreen(
     val p = profile
     if (p == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = accentColor)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                AsyncImage(
+                    model = "https://res.cloudinary.com/dlr63wcmt/image/upload/v1782377619/Main_lmc9y6.png",
+                    contentDescription = "MYTHIC Logo",
+                    modifier = Modifier.size(100.dp).padding(bottom = 16.dp),
+                    contentScale = ContentScale.Fit
+                )
+                CircularProgressIndicator(color = accentColor)
+            }
         }
     } else {
         Box(
@@ -76,15 +89,29 @@ fun ProfileScreen(
                                 .size(110.dp)
                                 .clip(CircleShape)
                                 .border(3.dp, accentColor, CircleShape)
+                                .background(Color.Gray.copy(alpha = 0.2f))
+                                .clickable { viewModel.randomizeAvatar() }
                         ) {
                             AsyncImage(
                                 model = p.avatarUrl,
                                 contentDescription = p.fullName,
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        Text(
+                            text = "🎲 Tap Avatar to Randomize!",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = accentColor,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            modifier = Modifier.clickable { viewModel.randomizeAvatar() }
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         // Username and emails
                         Text(
@@ -138,20 +165,6 @@ fun ProfileScreen(
                                     color = textPrimary
                                 )
                             }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "STREAK",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = textSecondary
-                                )
-                                Text(
-                                    text = "${p.streak}🔥",
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color(0xFFFF9800)
-                                )
-                            }
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -195,6 +208,42 @@ fun ProfileScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("Logout", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Social Links Section
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "FOLLOW US",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Black,
+                                color = textSecondary,
+                                letterSpacing = 1.sp
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            // Instagram (Simulated)
+                            IconButton(onClick = { /* Open Instagram */ }, modifier = Modifier.size(32.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = "Instagram",
+                                    tint = accentColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            // Facebook (Simulated)
+                            IconButton(onClick = { /* Open Facebook */ }, modifier = Modifier.size(32.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.Public,
+                                    contentDescription = "Facebook",
+                                    tint = accentColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                         }
                     }
@@ -411,12 +460,23 @@ fun ProfileScreen(
                     Divider(color = textSecondary.copy(alpha = 0.2f))
 
                     // About section
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        AsyncImage(
+                            model = "https://res.cloudinary.com/dlr63wcmt/image/upload/v1782377619/Main_lmc9y6.png",
+                            contentDescription = "MYTHIC Logo",
+                            modifier = Modifier.size(80.dp).padding(bottom = 8.dp),
+                            contentScale = ContentScale.Fit
+                        )
                         Text("About MYTHIC", color = textPrimary, fontWeight = FontWeight.SemiBold)
                         Text(
-                            text = "MYTHIC is an advanced, offline-capable Sri Lankan heritage explorer. Our mission is to digitize, preserve, and celebrate ancient landmarks across Sri Lanka using AI-powered camera scanning and immersive companion technology.",
+                            text = "MYTHIC is an advanced, online-first Sri Lankan heritage explorer. Our mission is to digitize, preserve, and celebrate ancient landmarks across Sri Lanka using AI-powered camera scanning and immersive companion technology.",
                             color = textSecondary,
-                            fontSize = 13.sp
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center
                         )
                     }
 

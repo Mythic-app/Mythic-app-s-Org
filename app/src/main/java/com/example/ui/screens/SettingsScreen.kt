@@ -45,6 +45,25 @@ fun SettingsScreen(
                 )
             }
         }
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Text(text = "Connect With Us", color = Color.White, style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+        // Simple list of links
+        Text(text = "Twitter: https://x.com/mythic_app1", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+        Text(text = "TikTok: https://www.tiktok.com/@mythic.app", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+        Text(text = "Instagram: https://www.instagram.com/mythic.app", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+        Text(text = "YouTube: https://www.youtube.com/@mythic_app", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+        Text(text = "Reddit: https://www.reddit.com/user/Mythic_app", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+        Text(text = "Discord: https://discord.gg/2dusvsUz5v", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Text(text = "Our Team", color = Color.White, style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = "Lead Developer: [Name]", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+        Text(text = "Designer: [Name]", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
     }
 }
 

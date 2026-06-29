@@ -30,7 +30,26 @@ data class GeminiContent(
 
 data class GeminiRequest(
     val contents: List<GeminiContent>,
-    val systemInstruction: GeminiContent? = null
+    val systemInstruction: GeminiContent? = null,
+    val generationConfig: GeminiGenerationConfig? = null
+)
+
+data class GeminiGenerationConfig(
+    val responseMimeType: String? = null,
+    val responseSchema: Any? = null,
+    val temperature: Float? = null
+)
+
+data class HeritageQuiz(
+    val siteName: String,
+    val questions: List<QuizQuestion>
+)
+
+data class QuizQuestion(
+    val question: String,
+    val options: List<String>,
+    val correctAnswerIndex: Int,
+    val explanation: String
 )
 
 data class GeminiCandidate(

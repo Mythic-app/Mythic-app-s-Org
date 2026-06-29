@@ -8,5 +8,6 @@ interface ProfileRepository {
     suspend fun getProfile(): ProfileEntity?
     suspend fun insertProfile(profile: ProfileEntity)
     suspend fun updateStreak(userId: String)
+    suspend fun updateAvatar(userId: String, newAvatarUrl: String)
     suspend fun clearProfile()
 }

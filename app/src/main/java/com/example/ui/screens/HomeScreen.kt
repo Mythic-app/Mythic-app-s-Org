@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,6 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.R
 import com.example.ui.components.GlassSurface
 import com.example.viewmodel.MythicViewModel
 
@@ -37,7 +40,8 @@ import com.example.viewmodel.MythicViewModel
 fun HomeScreen(
     viewModel: MythicViewModel,
     onNavigateToAR: () -> Unit,
-    onNavigateToLumo: () -> Unit
+    onNavigateToLumo: () -> Unit,
+    onNavigateToMap: () -> Unit
 ) {
     val profile by viewModel.profile.collectAsState()
     val scanHistory by viewModel.scanHistory.collectAsState()
@@ -71,6 +75,22 @@ fun HomeScreen(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            // Brand Logo Header
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AsyncImage(
+                        model = "https://res.cloudinary.com/dlr63wcmt/image/upload/v1782377619/Main_lmc9y6.png",
+                        contentDescription = "MYTHIC Logo",
+                        modifier = Modifier.height(36.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+            }
+
             // Header welcome bar
             item {
                 Row(
@@ -91,6 +111,7 @@ fun HomeScreen(
                                 .clip(CircleShape)
                                 .border(2.dp, accentColor, CircleShape)
                                 .background(Color.DarkGray)
+                                .clickable { viewModel.randomizeAvatar() }
                         )
                         Column {
                             Text(
@@ -233,17 +254,6 @@ fun HomeScreen(
                         Text(text = "${p.badgesCount}", style = MaterialTheme.typography.titleMedium.copy(color = textPrimary, fontWeight = FontWeight.Bold))
                     }
 
-                    // Streak
-                    Column(
-                        modifier = statModifier,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(text = "🔥", fontSize = 20.sp)
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(text = "STREAK", style = MaterialTheme.typography.labelSmall.copy(color = textSecondary, fontWeight = FontWeight.Bold))
-                        Text(text = "${p.streak}d", style = MaterialTheme.typography.titleMedium.copy(color = textPrimary, fontWeight = FontWeight.Bold))
-                    }
-
                     // XP / Rank
                     Column(
                         modifier = statModifier,
@@ -253,6 +263,56 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(text = "RANK", style = MaterialTheme.typography.labelSmall.copy(color = textSecondary, fontWeight = FontWeight.Bold))
                         Text(text = "#4", style = MaterialTheme.typography.titleMedium.copy(color = textPrimary, fontWeight = FontWeight.Bold))
+                    }
+                }
+            }
+
+            // Interactive Map Banner
+            item {
+                GlassSurface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToMap() }
+                        .testTag("interactive_map_banner")
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(accentColor.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "🗺️", fontSize = 28.sp)
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Interactive Map Guide",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = textPrimary
+                                )
+                            )
+                            Text(
+                                text = "Locate ancient ruins & sacred sites in real-time across Sri Lanka.",
+                                style = MaterialTheme.typography.bodySmall.copy(color = textSecondary)
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(if (isDark) Color(0xFF1F1F1F) else Color(0xFFEFEFEF)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "➔", fontSize = 14.sp, color = textPrimary)
+                        }
                     }
                 }
             }
@@ -302,6 +362,8 @@ fun HomeScreen(
                     AsyncImage(
                         model = activeItem.second,
                         contentDescription = activeItem.first,
+                        placeholder = painterResource(R.drawable.app_logo_custom),
+                        error = painterResource(R.drawable.app_logo_custom),
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -465,6 +527,8 @@ fun HomeScreen(
                             AsyncImage(
                                 model = scan.imageUrl,
                                 contentDescription = scan.siteName,
+                                placeholder = painterResource(R.drawable.app_logo_custom),
+                                error = painterResource(R.drawable.app_logo_custom),
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .size(60.dp)

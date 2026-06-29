@@ -47,7 +47,12 @@ interface SupabaseApiService {
     @PATCH("rest/v1/profiles")
     suspend fun updateProfile(
         @Query("id") query: String,
-        @Body profile: Map<String, Any>
+        @Body profile: Map<String, @JvmSuppressWildcards Any>
+    ): Response<Unit>
+
+    @POST("rest/v1/profiles")
+    suspend fun createProfile(
+        @Body profile: SupabaseProfile
     ): Response<Unit>
 
     // --- BADGES ---
@@ -124,6 +129,39 @@ interface SupabaseApiService {
 
     @GET("rest/v1/reports")
     suspend fun getReports(): Response<List<SupabaseReport>>
+
+    // --- REELS ---
+    @GET("rest/v1/reels")
+    suspend fun getReels(
+        @Query("select") select: String = "*"
+    ): Response<List<SupabaseReel>>
+
+    @POST("rest/v1/reels")
+    suspend fun saveReel(
+        @Body reel: SupabaseReel
+    ): Response<Unit>
+
+    // --- COMMUNITY & COMMENTS ---
+    @GET("rest/v1/community_posts")
+    suspend fun getCommunityPosts(
+        @Query("order") order: String = "created_at.desc"
+    ): Response<List<SupabaseCommunityPost>>
+
+    @POST("rest/v1/community_posts")
+    suspend fun saveCommunityPost(
+        @Body post: SupabaseCommunityPost
+    ): Response<Unit>
+
+    @GET("rest/v1/comments")
+    suspend fun getComments(
+        @Query("reel_id") reelId: String? = null,
+        @Query("post_id") postId: String? = null
+    ): Response<List<SupabaseComment>>
+
+    @POST("rest/v1/comments")
+    suspend fun saveComment(
+        @Body comment: SupabaseComment
+    ): Response<Unit>
 }
 
 object SupabaseClient {

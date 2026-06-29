@@ -8,6 +8,7 @@ import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
@@ -94,6 +95,22 @@ fun ARScreen(
                     val preview = Preview.Builder().build().apply {
                         surfaceProvider = previewView.surfaceProvider
                     }
+                    val imageAnalysis = ImageAnalysis.Builder()
+                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                        .build()
+                        .apply {
+                            var lastScanTime = 0L
+                            setAnalyzer(ContextCompat.getMainExecutor(ctx)) { imageProxy ->
+                                val currentTime = System.currentTimeMillis()
+                                if (currentTime - lastScanTime > 3000) { // Throttle: scan every 3 seconds
+                                    lastScanTime = currentTime
+                                    // TODO: Implement frame-to-bitmap-to-base64-to-scan conversion logic
+                                    // For now, simulate real-time scan success after delay
+                                    viewModel.scanWithGeminiVision("", "image/jpeg", "Sigiriya", "img_sigiriya")
+                                }
+                                imageProxy.close()
+                            }
+                        }
                     val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
                     try {
                         cameraProvider?.unbindAll()
@@ -101,6 +118,7 @@ fun ARScreen(
                             lifecycleOwner,
                             cameraSelector,
                             preview,
+                            imageAnalysis,
                             imageCapture
                         )
                     } catch (e: Exception) {

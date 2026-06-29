@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
+import coil.imageLoader
+import coil.request.ImageRequest
 import com.example.ui.screens.*
 import com.example.ui.theme.MythicTheme
 import com.example.viewmodel.MythicViewModel
@@ -41,7 +43,7 @@ import com.example.ui.screens.SettingsScreen
 import com.example.R
 
 enum class Screen {
-    SPLASH, AUTH, MAIN, CHAT, AR_EXPLORE, SETTINGS, ADMIN
+    SPLASH, AUTH, MAIN, CHAT, AR_EXPLORE, SETTINGS, ADMIN, MAP_EXPLORE
 }
 
 enum class Tab {
@@ -55,13 +57,27 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Preload the logo image for instant loading
+        val imageRequest = ImageRequest.Builder(this)
+            .data("https://res.cloudinary.com/dlr63wcmt/image/upload/v1782377619/Main_lmc9y6.png")
+            .build()
+        imageLoader.enqueue(imageRequest)
+
         setContent {
             MythicTheme {
                 AppBackground {
+                    val currentUser by viewModel.currentUser.collectAsState()
                     var currentScreen by remember { mutableStateOf(Screen.SPLASH) }
-                var currentTab by remember { mutableStateOf(Tab.HOME) }
+                    var currentTab by remember { mutableStateOf(Tab.HOME) }
 
-                val currentUser by viewModel.currentUser.collectAsState()
+                    LaunchedEffect(currentUser) {
+                        if (currentUser != null) {
+                            currentScreen = Screen.MAIN
+                        } else {
+                            currentScreen = Screen.SPLASH
+                        }
+                    }
+
                 val scanResult by viewModel.scanResult.collectAsState()
                 val showScanResultDialog by viewModel.showScanResultDialog.collectAsState()
 
@@ -124,7 +140,8 @@ class MainActivity : ComponentActivity() {
                                     Tab.HOME -> HomeScreen(
                                         viewModel = viewModel,
                                         onNavigateToAR = { currentScreen = Screen.AR_EXPLORE },
-                                        onNavigateToLumo = { currentScreen = Screen.CHAT }
+                                        onNavigateToLumo = { currentScreen = Screen.CHAT },
+                                        onNavigateToMap = { currentScreen = Screen.MAP_EXPLORE }
                                     )
                                     Tab.FEED -> FeedScreen(viewModel = viewModel)
                                     Tab.AI -> AIScreen(viewModel = viewModel)
@@ -157,6 +174,12 @@ class MainActivity : ComponentActivity() {
                             }
                             Screen.ADMIN -> {
                                 AdminDashboardScreen(
+                                    viewModel = viewModel,
+                                    onBack = { currentScreen = Screen.MAIN }
+                                )
+                            }
+                            Screen.MAP_EXPLORE -> {
+                                MapScreen(
                                     viewModel = viewModel,
                                     onBack = { currentScreen = Screen.MAIN }
                                 )
@@ -290,11 +313,11 @@ fun SplashScreen(
             .background(Color.Black)
     ) {
         // Hero background image
-        Image(
-            painter = painterResource(id = R.drawable.sigiriya_splash_1782327284271),
-            contentDescription = "Sigiriya Hero",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+        AsyncImage(
+            model = "https://res.cloudinary.com/dlr63wcmt/image/upload/v1782377619/Main_lmc9y6.png",
+            contentDescription = "Mythic Logo",
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize().padding(64.dp)
         )
 
         // Gradient overlay
@@ -321,23 +344,6 @@ fun SplashScreen(
             verticalArrangement = Arrangement.Bottom,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "MYTHIC",
-                style = MaterialTheme.typography.displayLarge.copy(
-                    fontWeight = FontWeight.Black,
-                    color = Color(0xFF9AF04D),
-                    letterSpacing = 4.sp
-                )
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Explore. Learn. Preserve.",
-                color = Color.LightGray,
-                style = MaterialTheme.typography.bodyLarge.copy(letterSpacing = 2.sp)
-            )
-
             Spacer(modifier = Modifier.height(40.dp))
 
             Text(

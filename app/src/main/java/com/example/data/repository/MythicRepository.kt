@@ -5,6 +5,8 @@ import android.util.Log
 import com.example.BuildConfig
 import com.example.data.local.*
 import com.example.data.remote.*
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.withContext
@@ -35,14 +37,8 @@ class MythicRepository(context: Context) :
     val currentUser: StateFlow<SupabaseUser?> = _currentUser.asStateFlow()
 
     init {
-        // Initialize simple guest/default user profile if none exists
-        // so that the app is immediately populated and beautiful
-        // without requiring a cloud signup.
-        _currentUser.value = SupabaseUser(
-            id = "default_user_123",
-            email = "explorer@mythic.lk",
-            userMetadata = mapOf("username" to "explorer_01", "full_name" to "Heritage Explorer")
-        )
+        // Start as logged out by default so users are forced to log in or sign up
+        _currentUser.value = null
     }
 
     suspend fun checkSession() {
@@ -55,24 +51,29 @@ class MythicRepository(context: Context) :
                 userMetadata = mapOf("username" to existingProfile.username, "full_name" to existingProfile.fullName)
             )
         } else {
-            // Seed a default profile for first-time premium sandbox experience
-            seedDefaultData()
+            _currentUser.value = null
         }
     }
 
-    private suspend fun seedDefaultData() {
-        val defaultId = "default_user_123"
+    suspend fun seedUserData(userId: String, username: String, email: String, isDemo: Boolean = false) = withContext(Dispatchers.IO) {
+        val defaultId = userId
+        val level = if (isDemo) 5 else 1
+        val xp = if (isDemo) 2750 else 0
+        val streak = if (isDemo) 7 else 1
+        val scansCount = if (isDemo) 23 else 0
+        val badgesCount = if (isDemo) 12 else 0
+
         val profile = ProfileEntity(
             id = defaultId,
-            username = "explorer_01",
-            email = "explorer@mythic.lk",
-            fullName = "Heritage Explorer",
-            avatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=explorer",
-            level = 5,
-            xp = 2750, // 4 * 600 + 350 XP = 2750 XP (which is Level 5, 350 / 600 XP)
-            streak = 7,
-            scansCount = 23,
-            badgesCount = 12
+            username = username,
+            email = email,
+            fullName = username,
+            avatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=$username",
+            level = level,
+            xp = xp,
+            streak = streak,
+            scansCount = scansCount,
+            badgesCount = badgesCount
         )
         dao.insertProfile(profile)
 
@@ -112,10 +113,10 @@ class MythicRepository(context: Context) :
                 completed = false
             ),
             QuestEntity(
-                id = "quest_maintain_streak",
+                id = "quest_weekly_explorer",
                 userId = defaultId,
-                title = "Maintain Streak",
-                description = "Keep your streak alive",
+                title = "Weekly Explorer",
+                description = "Explore heritage locations this week",
                 rewardXp = 100,
                 progress = 1,
                 target = 1,
@@ -150,12 +151,12 @@ class MythicRepository(context: Context) :
             BadgeEntity(
                 id = "badge_photographer",
                 userId = defaultId,
-                code = "streak_master",
-                name = "Streak Master",
-                description = "Maintain a 7-day scanning streak",
+                code = "photo_expert",
+                name = "Expert Photographer",
+                description = "Scan multiple heritage views",
                 tier = "gold",
                 unlockedAt = System.currentTimeMillis() - 86400000,
-                icon = "🔥"
+                icon = "📸"
             ),
             BadgeEntity(
                 id = "badge_historian",
@@ -227,21 +228,7 @@ class MythicRepository(context: Context) :
                     if (user != null) {
                         // User needs to confirm email first, so we do NOT set _currentUser.value yet
                         _currentUser.value = null
-                        // Insert a provisional profile in local cache
-                        dao.insertProfile(
-                            ProfileEntity(
-                                id = user.id,
-                                username = username,
-                                email = email,
-                                fullName = username,
-                                avatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=$username",
-                                level = 1,
-                                xp = 0,
-                                streak = 1,
-                                scansCount = 0,
-                                badgesCount = 0
-                            )
-                        )
+                        seedUserData(user.id, username, email)
                         return@withContext "VERIFICATION_SENT"
                     }
                 } else {
@@ -255,21 +242,7 @@ class MythicRepository(context: Context) :
             
             // Local emulation fallback (emulates email verification prompt)
             val mockId = UUID.randomUUID().toString()
-            // We insert into local cache, but don't set current user yet, requiring a fake login
-            dao.insertProfile(
-                ProfileEntity(
-                    id = mockId,
-                    username = username,
-                    email = email,
-                    fullName = username,
-                    avatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=$username",
-                    level = 1,
-                    xp = 0,
-                    streak = 1,
-                    scansCount = 0,
-                    badgesCount = 0
-                )
-            )
+            seedUserData(mockId, username, email, isDemo = true)
             return@withContext "VERIFICATION_SENT_MOCK"
         } catch (e: Exception) {
             Log.e("MythicRepository", "SignUp failed", e)
@@ -309,6 +282,33 @@ class MythicRepository(context: Context) :
                                 badgesCount = p.badgesCount
                             )
                         )
+                    } else {
+                        // Remote profile not found or fetch failed.
+                        // Create a default local profile and push to Supabase as fallback.
+                        val extractedUsername = (user.userMetadata?.get("username") as? String)
+                            ?: (user.userMetadata?.get("full_name") as? String)
+                            ?: user.email?.substringBefore("@")
+                            ?: "Explorer"
+                        
+                        val userEmail = user.email ?: email
+                        
+                        // Seed local database (creates Profile and Quests)
+                        seedUserData(user.id, extractedUsername, userEmail)
+                        
+                        // Try to create/insert profile remotely in Supabase
+                        try {
+                            SupabaseClient.service.createProfile(
+                                SupabaseProfile(
+                                    id = user.id,
+                                    username = extractedUsername,
+                                    email = userEmail,
+                                    fullName = extractedUsername,
+                                    avatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=$extractedUsername"
+                                )
+                            )
+                        } catch (e: Exception) {
+                            Log.e("MythicRepository", "Failed to push fallback profile to Supabase", e)
+                        }
                     }
                     return@withContext null // Success
                 } else {
@@ -341,20 +341,7 @@ class MythicRepository(context: Context) :
                     mapOf("username" to name)
                 )
                 _currentUser.value = user
-                dao.insertProfile(
-                    ProfileEntity(
-                        id = mockId,
-                        username = name,
-                        email = email,
-                        fullName = name,
-                        avatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=$name",
-                        level = 1,
-                        xp = 0,
-                        streak = 1,
-                        scansCount = 0,
-                        badgesCount = 0
-                    )
-                )
+                seedUserData(mockId, name, email, isDemo = true)
                 return@withContext null // Success
             }
             return@withContext "Incorrect email or password."
@@ -400,6 +387,23 @@ class MythicRepository(context: Context) :
                 )
             } catch (e: Exception) {
                 Log.e("MythicRepository", "Supabase streak sync failed", e)
+            }
+        }
+    }
+
+    override suspend fun updateAvatar(userId: String, newAvatarUrl: String) = withContext(Dispatchers.IO) {
+        val currentProfile = dao.getProfile() ?: return@withContext
+        val updated = currentProfile.copy(avatarUrl = newAvatarUrl)
+        dao.insertProfile(updated)
+
+        if (SupabaseClient.isConfigured && _currentUser.value != null) {
+            try {
+                SupabaseClient.service.updateProfile(
+                    "id=eq.${updated.id}",
+                    mapOf("avatar_url" to newAvatarUrl)
+                )
+            } catch (e: Exception) {
+                Log.e("MythicRepository", "Supabase avatar sync failed", e)
             }
         }
     }
@@ -788,9 +792,64 @@ class MythicRepository(context: Context) :
         }
     }
 
-    // --- LUMO COMPANION CHAT ---
+    // --- COMMUNITY ---
+    suspend fun getCommunityPosts(): List<SupabaseCommunityPost> = withContext(Dispatchers.IO) {
+        if (SupabaseClient.isConfigured) {
+            try {
+                SupabaseClient.service.getCommunityPosts().body() ?: emptyList()
+            } catch (e: Exception) {
+                Log.e("MythicRepository", "Supabase community posts fetch failed", e)
+                emptyList()
+            }
+        } else {
+            emptyList()
+        }
+    }
+
+    suspend fun submitCommunityPost(content: String, imageUrl: String? = null) = withContext(Dispatchers.IO) {
+        val userId = _currentUser.value?.id ?: "guest"
+        val post = SupabaseCommunityPost(
+            id = UUID.randomUUID().toString(),
+            userId = userId,
+            content = content,
+            imageUrl = imageUrl,
+            likes = 0,
+            createdAt = System.currentTimeMillis().toString()
+        )
+        if (SupabaseClient.isConfigured) {
+            try {
+                SupabaseClient.service.saveCommunityPost(post)
+            } catch (e: Exception) {
+                Log.e("MythicRepository", "Supabase community post save failed", e)
+            }
+        }
+    }
+
+    suspend fun submitComment(reelId: String? = null, postId: String? = null, content: String) = withContext(Dispatchers.IO) {
+        val userId = _currentUser.value?.id ?: "guest"
+        val comment = SupabaseComment(
+            id = UUID.randomUUID().toString(),
+            reelId = reelId,
+            postId = postId,
+            userId = userId,
+            content = content,
+            createdAt = System.currentTimeMillis().toString()
+        )
+        if (SupabaseClient.isConfigured) {
+            try {
+                SupabaseClient.service.saveComment(comment)
+            } catch (e: Exception) {
+                Log.e("MythicRepository", "Supabase comment save failed", e)
+            }
+        }
+    }
+
+    // --- LUMO COMPANION CHAT V2 ---
     suspend fun sendLumoMessage(userMessageContent: String): String = withContext(Dispatchers.IO) {
         val userId = _currentUser.value?.id ?: "guest"
+        
+        // Fetch Conversation Memory (last 5 messages)
+        val history = dao.getLumoConversations().takeLast(5)
         
         // Save user message
         val userMsg = LumoConversationEntity(
@@ -819,22 +878,46 @@ class MythicRepository(context: Context) :
             }
         }
 
-        // Call Gemini or fallback locally
+        // Call Gemini with Memory
         val assistantResponse = if (GeminiClient.isConfigured) {
             try {
-                val systemInstruction = "You are LUMO, an expert Sri Lankan heritage guide, archeologist, and cultural educator. Limit your responses to the historical, cultural, geographical, and architectural facts of Sri Lanka. Keep your tone highly conversational, inspiring, and rich in historical detail. Include emojis where helpful."
+                val systemInstruction = """
+                    You are LUMO V2, a production-ready advanced AI heritage guide for Sri Lanka.
+                    Capabilities:
+                    1. Heritage Expert: Deep knowledge of ancient cities (Sigiriya, Anuradhapura, etc.), kingdoms, and archeology.
+                    2. Tour Guide & Trip Planner: Can plan 3-day or 7-day heritage tours.
+                    3. Translator: Can translate phrases between English, Sinhala, and Tamil.
+                    4. Quiz Generator: Create engaging heritage quizzes.
+                    5. Cite Sources: Always mention Wikipedia or National Heritage Database when possible.
+                    
+                    Memory: You have access to the recent conversation history. Use it to provide contextual answers.
+                    Search: You can 'simulate' searching the heritage database or Wikipedia for the latest info.
+                    
+                    Tone: Conversational, knowledgeable, inspiring. Use emojis.
+                """.trimIndent()
+                
+                val historyParts = history.map { entity: LumoConversationEntity -> 
+                    GeminiContent(
+                        role = if (entity.role == "user") "user" else "model",
+                        parts = listOf(GeminiPart(text = entity.content))
+                    )
+                }
+                
+                val currentRequestContent = GeminiContent(
+                    role = "user",
+                    parts = listOf(GeminiPart(text = userMessageContent))
+                )
+
+                val contents = historyParts + listOf(currentRequestContent)
+
                 val request = GeminiRequest(
-                    contents = listOf(
-                        GeminiContent(
-                            role = "user",
-                            parts = listOf(GeminiPart(text = userMessageContent))
-                        )
-                    ),
+                    contents = contents,
                     systemInstruction = GeminiContent(
                         role = "system",
                         parts = listOf(GeminiPart(text = systemInstruction))
                     )
                 )
+                
                 val res = GeminiClient.service.generateContent(BuildConfig.GEMINI_API_KEY, request)
                 if (res.isSuccessful && res.body() != null) {
                     res.body()!!.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text 
@@ -918,6 +1001,54 @@ class MythicRepository(context: Context) :
 
     suspend fun clearChat() = withContext(Dispatchers.IO) {
         dao.clearLumoConversations()
+    }
+
+    // --- QUIZ GENERATION ---
+    suspend fun generateQuiz(siteName: String): HeritageQuiz? = withContext(Dispatchers.IO) {
+        if (!GeminiClient.isConfigured) return@withContext null
+
+        val prompt = "Generate a 3-question multiple choice educational quiz about $siteName in Sri Lanka."
+        
+        val systemInstruction = """
+            You are a Heritage Educator. Generate a structured educational quiz about a specific Sri Lankan heritage site.
+            The output MUST be in valid JSON format matching the following schema:
+            {
+              "siteName": "string",
+              "questions": [
+                {
+                  "question": "string",
+                  "options": ["string", "string", "string", "string"],
+                  "correctAnswerIndex": number,
+                  "explanation": "string"
+                }
+              ]
+            }
+            Keep questions engaging and factually accurate.
+        """.trimIndent()
+
+        val request = GeminiRequest(
+            contents = listOf(GeminiContent(parts = listOf(GeminiPart(text = prompt)))),
+            systemInstruction = GeminiContent(parts = listOf(GeminiPart(text = systemInstruction))),
+            generationConfig = GeminiGenerationConfig(
+                responseMimeType = "application/json",
+                temperature = 0.7f
+            )
+        )
+
+        try {
+            val response = GeminiClient.service.generateContent(BuildConfig.GEMINI_API_KEY, request)
+            if (response.isSuccessful && response.body() != null) {
+                val jsonString = response.body()!!.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                if (jsonString != null) {
+                    val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+                    val adapter = moshi.adapter(HeritageQuiz::class.java)
+                    return@withContext adapter.fromJson(jsonString)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MythicRepository", "Quiz generation failed", e)
+        }
+        return@withContext null
     }
 
     override suspend fun insertUserPreferences(prefs: UserPreferencesEntity) = withContext(Dispatchers.IO) {

@@ -5,11 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.BuildConfig
 import com.example.data.local.*
-import com.example.data.remote.GeminiClient
-import com.example.data.remote.GeminiContent
-import com.example.data.remote.GeminiPart
-import com.example.data.remote.GeminiRequest
-import com.example.data.remote.HeritageArticle
+import com.example.data.remote.*
 import com.example.data.repository.MythicRepository
 import com.example.ui.theme.MythicThemeState
 import com.example.ui.theme.ThemeMode
@@ -19,6 +15,7 @@ import kotlinx.coroutines.delay
 import com.example.data.remote.GeminiInlineData
 import com.example.data.remote.SupabaseReport
 import org.json.JSONObject
+import java.util.UUID
 
 class MythicViewModel(application: Application) : AndroidViewModel(application) {
     val repository = MythicRepository(application)
@@ -60,11 +57,54 @@ class MythicViewModel(application: Application) : AndroidViewModel(application) 
     private val _feedArticles = MutableStateFlow<List<HeritageArticle>>(emptyList())
     val feedArticles = _feedArticles.asStateFlow()
 
+    // --- TikTok Reels State ---
+    private val _reels = MutableStateFlow<List<HeritageReel>>(emptyList())
+    val reels = _reels.asStateFlow()
+
+    fun fetchReels() {
+        viewModelScope.launch {
+            try {
+                val response = SupabaseClient.service.getReels()
+                if (response.isSuccessful && response.body() != null) {
+                    val supabaseReels = response.body()!!
+                    val mappedReels = supabaseReels.map { r ->
+                        HeritageReel(
+                            id = r.id ?: UUID.randomUUID().toString(),
+                            siteName = r.siteName,
+                            province = r.province,
+                            description = r.description,
+                            videoUrl = r.videoUrl,
+                            imageUrl = r.thumbnailUrl ?: "img_sigiriya",
+                            category = r.category,
+                            author = "@heritage_explorer", // Mock author for now
+                            authorAvatarUrl = "https://api.dicebear.com/7.x/adventurer/png?seed=${r.id}",
+                            likes = r.likes,
+                            isLiked = false,
+                            comments = emptyList(),
+                            shares = r.shares
+                        )
+                    }
+                    _reels.value = mappedReels
+                } else if (_reels.value.isEmpty()) {
+                    initReels() // Fallback to mocks if DB empty
+                }
+            } catch (e: Exception) {
+                if (_reels.value.isEmpty()) initReels()
+            }
+        }
+    }
+
     private val _isGeneratingArticle = MutableStateFlow(false)
     val isGeneratingArticle = _isGeneratingArticle.asStateFlow()
 
+    private val _isGeneratingReel = MutableStateFlow(false)
+    val isGeneratingReel = _isGeneratingReel.asStateFlow()
+
     private val _generationError = MutableStateFlow<String?>(null)
     val generationError = _generationError.asStateFlow()
+
+    private val _reelGenerationError = MutableStateFlow<String?>(null)
+    val reelGenerationError = _reelGenerationError.asStateFlow()
 
     // --- UI Controls ---
     private val _isLumoTyping = MutableStateFlow(false)
@@ -90,6 +130,36 @@ class MythicViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _verificationSentEmail = MutableStateFlow<String?>(null)
     val verificationSentEmail = _verificationSentEmail.asStateFlow()
+
+    // --- Quiz State ---
+    private val _currentQuiz = MutableStateFlow<HeritageQuiz?>(null)
+    val currentQuiz = _currentQuiz.asStateFlow()
+
+    private val _isGeneratingQuiz = MutableStateFlow(false)
+    val isGeneratingQuiz = _isGeneratingQuiz.asStateFlow()
+
+    private val _quizError = MutableStateFlow<String?>(null)
+    val quizError = _quizError.asStateFlow()
+
+    fun generateQuiz(siteName: String) {
+        viewModelScope.launch {
+            _isGeneratingQuiz.value = true
+            _quizError.value = null
+            _currentQuiz.value = null
+            
+            val quiz = repository.generateQuiz(siteName)
+            if (quiz != null) {
+                _currentQuiz.value = quiz
+            } else {
+                _quizError.value = "Failed to generate quiz for $siteName. Please try again."
+            }
+            _isGeneratingQuiz.value = false
+        }
+    }
+
+    fun clearQuiz() {
+        _currentQuiz.value = null
+    }
 
     init {
         // Preseed articles with local high-quality drawables for offline loading and dynamic URL fallbacks
@@ -180,6 +250,9 @@ class MythicViewModel(application: Application) : AndroidViewModel(application) 
             )
         )
 
+        initReels()
+        fetchReels()
+
         viewModelScope.launch {
             repository.checkSession()
             // Observe preferences to apply theme
@@ -225,6 +298,17 @@ class MythicViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun randomizeAvatar() {
+        viewModelScope.launch {
+            val p = profile.value ?: return@launch
+            val randomSeed = (1000..99999).random()
+            val cartoonStyles = listOf("adventurer", "bottts", "lorelei", "fun-emoji", "avataaars")
+            val selectedStyle = cartoonStyles.random()
+            val newUrl = "https://api.dicebear.com/7.x/$selectedStyle/png?seed=avatar_$randomSeed"
+            repository.updateAvatar(p.id, newUrl)
+        }
+    }
+
     fun recoverPassword(email: String, onSent: () -> Unit) {
         viewModelScope.launch {
             _isLoggingIn.value = true
@@ -249,6 +333,7 @@ class MythicViewModel(application: Application) : AndroidViewModel(application) 
             onSuccess()
         }
     }
+
 
     // --- THEME SWITCHER ---
     fun toggleTheme(darkMode: Boolean) {
@@ -433,6 +518,7 @@ class MythicViewModel(application: Application) : AndroidViewModel(application) 
             _isGeneratingArticle.value = true
             _generationError.value = null
             
+            // Fallback to Gemini
             val isGeminiConfigured = GeminiClient.isConfigured
             var newArticle: HeritageArticle? = null
             
@@ -583,4 +669,396 @@ class MythicViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
     }
+
+    fun initReels() {
+        if (_reels.value.isNotEmpty()) return
+        _reels.value = listOf(
+            HeritageReel(
+                id = "reel_sigiriya",
+                siteName = "Sigiriya Fortress",
+                province = "Central Province",
+                description = "Ascending the colossal 5th-century ancient fortress in Sri Lanka. Absolutely mesmerizing views from the summit! 🦁👑 #sigiriya #srilanka #heritage",
+                videoUrl = "https://assets.mixkit.co/videos/preview/mixkit-sri-lanka-landscape-with-mountains-and-trees-43026-large.mp4",
+                imageUrl = "img_sigiriya",
+                category = "Ancient Cities",
+                author = "@heritage_guardian",
+                authorAvatarUrl = "https://api.dicebear.com/7.x/adventurer/png?seed=guardian",
+                likes = 342,
+                isLiked = false,
+                comments = listOf(
+                    ReelComment("c1", "@lanka_trekker", "https://api.dicebear.com/7.x/adventurer/png?seed=trekker", "This is absolutely breathtaking! Sigiriya is indeed the 8th wonder of the world.", "2h ago"),
+                    ReelComment("c2", "@ruins_lover", "https://api.dicebear.com/7.x/adventurer/png?seed=ruins", "I climbed it last year, the Lion's paws are giant!", "1h ago")
+                ),
+                shares = 88
+            ),
+            HeritageReel(
+                id = "reel_ella",
+                siteName = "Nine Arch Bridge",
+                province = "Uva Province",
+                description = "Watching the historic colonial train pass over the magnificent Demodara Nine Arch Bridge in the lush green hills of Ella. 🚂🌲 #ella #train #scenic",
+                videoUrl = "https://assets.mixkit.co/videos/preview/mixkit-beautiful-aerial-shot-of-a-railway-bridge-in-sri-lanka-43015-large.mp4",
+                imageUrl = "img_kandy",
+                category = "Architecture",
+                author = "@travel_lanka",
+                authorAvatarUrl = "https://api.dicebear.com/7.x/adventurer/png?seed=traveller",
+                likes = 521,
+                isLiked = false,
+                comments = listOf(
+                    ReelComment("c3", "@rail_fan", "https://api.dicebear.com/7.x/adventurer/png?seed=rail", "The blue train of Sri Lanka is so iconic. Love Ella!", "3h ago")
+                ),
+                shares = 154
+            ),
+            HeritageReel(
+                id = "reel_galle",
+                siteName = "Galle Dutch Fort",
+                province = "Southern Province",
+                description = "Golden hour sunset over the historic Galle Dutch Fort ramparts and beautiful coastal reef waves. 🌅🏰 #gallefort #history #coastline",
+                videoUrl = "https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-beach-with-turquoise-water-and-waves-43016-large.mp4",
+                imageUrl = "img_galle",
+                category = "Ancient Cities",
+                author = "@fort_explorer",
+                authorAvatarUrl = "https://api.dicebear.com/7.x/adventurer/png?seed=fort",
+                likes = 289,
+                isLiked = false,
+                comments = listOf(
+                    ReelComment("c4", "@ocean_breeze", "https://api.dicebear.com/7.x/adventurer/png?seed=breeze", "Walks on the Galle Fort walls are so magical in evenings.", "30m ago")
+                ),
+                shares = 42
+            ),
+            HeritageReel(
+                id = "reel_waterfall",
+                siteName = "Laxapana Waterfalls",
+                province = "Central Province",
+                description = "Uncovering the breathtaking, pristine waterfalls hidden deep in the lush tropical forests of Sri Lanka. 🌿💦 #waterfalls #nature #paradise",
+                videoUrl = "https://assets.mixkit.co/videos/preview/mixkit-waterfall-in-forest-2213-large.mp4",
+                imageUrl = "img_anuradhapura",
+                category = "Nature",
+                author = "@wild_lanka",
+                authorAvatarUrl = "https://api.dicebear.com/7.x/adventurer/png?seed=wild",
+                likes = 412,
+                isLiked = false,
+                comments = listOf(
+                    ReelComment("c5", "@nature_girl", "https://api.dicebear.com/7.x/adventurer/png?seed=girl", "Sri Lanka is so unbelievably green and rich in nature!", "5m ago")
+                ),
+                shares = 91
+            )
+        )
+    }
+
+    fun toggleLikeReel(reelId: String) {
+        _reels.value = _reels.value.map { reel ->
+            if (reel.id == reelId) {
+                val newLiked = !reel.isLiked
+                reel.copy(
+                    isLiked = newLiked,
+                    likes = if (newLiked) reel.likes + 1 else reel.likes - 1
+                )
+            } else reel
+        }
+    }
+
+    fun addCommentToReel(reelId: String, text: String) {
+        if (text.isBlank()) return
+        val userProfile = profile.value
+        val username = userProfile?.username ?: "explorer"
+        val avatar = userProfile?.avatarUrl ?: "https://api.dicebear.com/7.x/adventurer/png?seed=explorer"
+        val newComment = ReelComment(
+            id = UUID.randomUUID().toString(),
+            username = "@$username",
+            avatarUrl = avatar,
+            text = text,
+            timestamp = "Just now"
+        )
+        _reels.value = _reels.value.map { reel ->
+            if (reel.id == reelId) {
+                reel.copy(comments = reel.comments + newComment)
+            } else reel
+        }
+    }
+
+    fun shareReel(reelId: String) {
+        _reels.value = _reels.value.map { reel ->
+            if (reel.id == reelId) {
+                reel.copy(shares = reel.shares + 1)
+            } else reel
+        }
+    }
+
+    private var isFetchingNextReel = false
+
+    fun generateNextReel() {
+        if (isFetchingNextReel) return
+        isFetchingNextReel = true
+        
+        viewModelScope.launch {
+            val isGeminiConfigured = GeminiClient.isConfigured
+            var newReel: HeritageReel? = null
+            
+            if (isGeminiConfigured) {
+                try {
+                    val prompt = """
+                        Generate a brand new, highly engaging TikTok/Reel short script presentation details for a unique, lesser-known Sri Lankan ancient heritage site, temple, fort, waterfall, beach, or scenic historical spot.
+                        Your response MUST be a single raw JSON object with the exact following fields:
+                        {
+                          "siteName": "Name of the site",
+                          "province": "The province of Sri Lanka (e.g. Central, Southern, North Central, Northern, Western, Sabaragamuwa, Uva, North Western, Eastern)",
+                          "description": "An engaging TikTok style description with appropriate trending hashtags and emojis (max 150 characters)",
+                          "category": "One of: 'Architecture', 'Ancient Cities', 'Religious', 'Nature'",
+                          "author": "An engaging expert handle (e.g., '@lanka_explorer')"
+                        }
+                        Important: Do NOT wrap the JSON inside markdown code blocks (e.g., ```json ... ```) or any other formatting. Output ONLY the raw JSON string.
+                    """.trimIndent()
+                    
+                    val request = GeminiRequest(
+                        contents = listOf(
+                            GeminiContent(
+                                role = "user",
+                                parts = listOf(GeminiPart(text = prompt))
+                            )
+                        )
+                    )
+                    
+                    val response = GeminiClient.service.generateContent(BuildConfig.GEMINI_API_KEY, request)
+                    val responseBody = response.body()
+                    val responseText = responseBody?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                    
+                    if (!responseText.isNullOrBlank()) {
+                        var cleanJson = responseText.trim()
+                        if (cleanJson.startsWith("```")) {
+                            cleanJson = cleanJson.removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
+                        }
+                        
+                        val json = JSONObject(cleanJson)
+                        val siteName = json.getString("siteName")
+                        val province = json.getString("province")
+                        val description = json.getString("description")
+                        val category = json.getString("category")
+                        val author = json.getString("author")
+                        
+                        val videoUrls = listOf(
+                            "https://assets.mixkit.co/videos/preview/mixkit-sri-lanka-landscape-with-mountains-and-trees-43026-large.mp4",
+                            "https://assets.mixkit.co/videos/preview/mixkit-beautiful-aerial-shot-of-a-railway-bridge-in-sri-lanka-43015-large.mp4",
+                            "https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-beach-with-turquoise-water-and-waves-43016-large.mp4",
+                            "https://assets.mixkit.co/videos/preview/mixkit-waterfall-in-forest-2213-large.mp4",
+                            "https://assets.mixkit.co/videos/preview/mixkit-forest-stream-in-the-sunlight-529-large.mp4",
+                            "https://assets.mixkit.co/videos/preview/mixkit-rocks-and-waves-on-a-beach-14022-large.mp4",
+                            "https://assets.mixkit.co/videos/preview/mixkit-top-aerial-view-of-waves-beating-sandy-beach-43022-large.mp4",
+                            "https://assets.mixkit.co/videos/preview/mixkit-waterfall-in-the-middle-of-a-forest-4621-large.mp4"
+                        )
+                        val selectedVideo = videoUrls[_reels.value.size % videoUrls.size]
+                        
+                        newReel = HeritageReel(
+                            id = "reel_dynamic_" + System.currentTimeMillis(),
+                            siteName = siteName,
+                            province = province,
+                            description = description,
+                            videoUrl = selectedVideo,
+                            imageUrl = "https://images.unsplash.com/featured/?srilanka,heritage,${siteName.replace(" ", "")}",
+                            category = if (category in listOf("Architecture", "Ancient Cities", "Religious", "Nature")) category else "Ancient Cities",
+                            author = author,
+                            authorAvatarUrl = "https://api.dicebear.com/7.x/adventurer/png?seed=${author.replace("@", "")}",
+                            likes = (100..900).random(),
+                            isLiked = false,
+                            comments = emptyList(),
+                            shares = (10..200).random()
+                        )
+                    }
+                } catch (e: Exception) {
+                    // Fallback
+                }
+            }
+            
+            if (newReel == null) {
+                newReel = getOfflineGeneratedReel(null, _reels.value.size)
+            }
+            
+            _reels.value = _reels.value + newReel
+            isFetchingNextReel = false
+        }
+    }
+
+    fun generateNewReel(query: String?, onComplete: (() -> Unit)? = null) {
+        viewModelScope.launch {
+            _isGeneratingReel.value = true
+            _reelGenerationError.value = null
+            
+            var newReel: HeritageReel? = null
+            val isGeminiConfigured = GeminiClient.isConfigured
+            
+            if (isGeminiConfigured) {
+                try {
+                    val prompt = """
+                        Generate an engaging short video Reel script details for a Sri Lankan ancient heritage site, temple, fortress, scenic historical landmark matching: "${query ?: "a random amazing heritage spot"}".
+                        Your response MUST be a single raw JSON object with the exact following fields:
+                        {
+                          "siteName": "Name of the site",
+                          "province": "The province of Sri Lanka",
+                          "description": "An engaging TikTok style description with hashtags and emojis (max 150 characters)",
+                          "category": "One of: 'Architecture', 'Ancient Cities', 'Religious', 'Nature'",
+                          "author": "An engaging expert handle (e.g. '@lanka_explorer')"
+                        }
+                        Important: Do NOT wrap the JSON inside markdown code blocks or any other formatting. Output ONLY the raw JSON string.
+                    """.trimIndent()
+                    
+                    val request = GeminiRequest(
+                        contents = listOf(
+                            GeminiContent(
+                                role = "user",
+                                parts = listOf(GeminiPart(text = prompt))
+                            )
+                        )
+                    )
+                    
+                    val response = GeminiClient.service.generateContent(BuildConfig.GEMINI_API_KEY, request)
+                    val responseBody = response.body()
+                    val responseText = responseBody?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                    
+                    if (!responseText.isNullOrBlank()) {
+                        var cleanJson = responseText.trim()
+                        if (cleanJson.startsWith("```")) {
+                            cleanJson = cleanJson.removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
+                        }
+                        
+                        val json = JSONObject(cleanJson)
+                        val siteName = json.getString("siteName")
+                        val province = json.getString("province")
+                        val description = json.getString("description")
+                        val category = json.getString("category")
+                        val author = json.getString("author")
+                        
+                        val videoUrls = listOf(
+                            "https://assets.mixkit.co/videos/preview/mixkit-sri-lanka-landscape-with-mountains-and-trees-43026-large.mp4",
+                            "https://assets.mixkit.co/videos/preview/mixkit-beautiful-aerial-shot-of-a-railway-bridge-in-sri-lanka-43015-large.mp4",
+                            "https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-beach-with-turquoise-water-and-waves-43016-large.mp4",
+                            "https://assets.mixkit.co/videos/preview/mixkit-waterfall-in-forest-2213-large.mp4",
+                            "https://assets.mixkit.co/videos/preview/mixkit-forest-stream-in-the-sunlight-529-large.mp4"
+                        )
+                        val selectedVideo = videoUrls.random()
+                        
+                        newReel = HeritageReel(
+                            id = "reel_dynamic_user_" + System.currentTimeMillis(),
+                            siteName = siteName,
+                            province = province,
+                            description = description,
+                            videoUrl = selectedVideo,
+                            imageUrl = "https://images.unsplash.com/featured/?srilanka,heritage,${siteName.replace(" ", "")}",
+                            category = if (category in listOf("Architecture", "Ancient Cities", "Religious", "Nature")) category else "Ancient Cities",
+                            author = author,
+                            authorAvatarUrl = "https://api.dicebear.com/7.x/adventurer/png?seed=${author.replace("@", "")}",
+                            likes = (100..500).random(),
+                            isLiked = false,
+                            comments = emptyList(),
+                            shares = (5..80).random()
+                        )
+                    }
+                } catch (e: Exception) {
+                    _reelGenerationError.value = "Gemini generation failed: ${e.message}"
+                }
+            }
+            
+            if (newReel == null) {
+                newReel = getOfflineGeneratedReel(query, _reels.value.size)
+            }
+            
+            _reels.value = listOf(newReel) + _reels.value
+            _isGeneratingReel.value = false
+            onComplete?.invoke()
+        }
+    }
+
+    private fun getOfflineGeneratedReel(query: String?, index: Int): HeritageReel {
+        val q = query?.lowercase()?.trim() ?: ""
+        val videoUrls = listOf(
+            "https://assets.mixkit.co/videos/preview/mixkit-sri-lanka-landscape-with-mountains-and-trees-43026-large.mp4",
+            "https://assets.mixkit.co/videos/preview/mixkit-beautiful-aerial-shot-of-a-railway-bridge-in-sri-lanka-43015-large.mp4",
+            "https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-beach-with-turquoise-water-and-waves-43016-large.mp4",
+            "https://assets.mixkit.co/videos/preview/mixkit-waterfall-in-forest-2213-large.mp4",
+            "https://assets.mixkit.co/videos/preview/mixkit-forest-stream-in-the-sunlight-529-large.mp4",
+            "https://assets.mixkit.co/videos/preview/mixkit-rocks-and-waves-on-a-beach-14022-large.mp4",
+            "https://assets.mixkit.co/videos/preview/mixkit-top-aerial-view-of-waves-beating-sandy-beach-43022-large.mp4",
+            "https://assets.mixkit.co/videos/preview/mixkit-waterfall-in-the-middle-of-a-forest-4621-large.mp4"
+        )
+        val selectedVideo = videoUrls[index % videoUrls.size]
+        
+        return when {
+            q.contains("dambulla") -> HeritageReel(
+                id = "reel_offline_dambulla_" + System.currentTimeMillis(),
+                siteName = "Dambulla Cave Temple",
+                province = "Central Province",
+                description = "Exploring the largest and best-preserved cave temple complex in Sri Lanka. Golden Buddha statues and magnificent murals! 🛕✨ #dambulla #buddhism #cave",
+                videoUrl = selectedVideo,
+                imageUrl = "https://images.unsplash.com/featured/?srilanka,dambulla",
+                category = "Religious",
+                author = "@cave_explorer",
+                authorAvatarUrl = "https://api.dicebear.com/7.x/adventurer/png?seed=cave_explorer",
+                likes = 428,
+                isLiked = false,
+                comments = listOf(ReelComment("c_d1", "@monk_life", "https://api.dicebear.com/7.x/adventurer/png?seed=monk", "So peaceful", "1h ago")),
+                shares = 54
+            )
+            q.contains("ruwanwelisaya") || q.contains("anuradhapura") -> HeritageReel(
+                id = "reel_offline_ruwanwelisaya_" + System.currentTimeMillis(),
+                siteName = "Ruwanwelisaya Stupa",
+                province = "North Central Province",
+                description = "Marveling at the grand white dome of Ruwanwelisaya, built by King Dutugemunu. A timeless relic of faith and engineering. 🏛️🤍 #anuradhapura #stupa #ancient",
+                videoUrl = selectedVideo,
+                imageUrl = "https://images.unsplash.com/featured/?srilanka,stupa",
+                category = "Religious",
+                author = "@sacred_lanka",
+                authorAvatarUrl = "https://api.dicebear.com/7.x/adventurer/png?seed=sacred",
+                likes = 612,
+                isLiked = false,
+                comments = listOf(),
+                shares = 120
+            )
+            else -> {
+                val topics = listOf(
+                    Triple("Polonnaruwa Vatadage", "North Central Province", "Stepping into the sacred stone walkways of the ancient Vatadage. The stone carvings here are unmatched! 🏛️💫 #polonnaruwa #ancient #carving"),
+                    Triple("Buduruvagala Rock", "Uva Province", "Uncovering the colossal 10th-century Mahayana Buddhist statues carved directly into the giant rock face. 🗿🌿 #buduruvagala #mystery #carvings"),
+                    Triple("Pidurangala Rock", "Central Province", "The absolute best place to watch the sunrise overlooking Sigiriya's Lion Rock. Peak trekking goals! 🌅🧗‍♂️ #pidurangala #trekking #sunrise"),
+                    Triple("Yala Safari", "Southern Province", "Spotting majestic leopards and elephants roaming free in the untamed wilderness. 🐆🐘 #yala #wildlife #safari")
+                )
+                val selectedTopic = topics[index % topics.size]
+                HeritageReel(
+                    id = "reel_offline_gen_${index}_" + System.currentTimeMillis(),
+                    siteName = selectedTopic.first,
+                    province = selectedTopic.second,
+                    description = selectedTopic.third,
+                    videoUrl = selectedVideo,
+                    imageUrl = "https://images.unsplash.com/featured/?srilanka,${selectedTopic.first.replace(" ", "")}",
+                    category = "Ancient Cities",
+                    author = "@lanka_guide",
+                    authorAvatarUrl = "https://api.dicebear.com/7.x/adventurer/png?seed=lankaguide",
+                    likes = (150..500).random(),
+                    isLiked = false,
+                    comments = listOf(),
+                    shares = (20..100).random()
+                )
+            }
+        }
+    }
 }
+
+data class HeritageReel(
+    val id: String,
+    val siteName: String,
+    val province: String,
+    val description: String,
+    val videoUrl: String,
+    val imageUrl: String,
+    val category: String,
+    val author: String,
+    val authorAvatarUrl: String,
+    val likes: Int,
+    val isLiked: Boolean,
+    val comments: List<ReelComment>,
+    val shares: Int
+)
+
+data class ReelComment(
+    val id: String,
+    val username: String,
+    val avatarUrl: String,
+    val text: String,
+    val timestamp: String
+)

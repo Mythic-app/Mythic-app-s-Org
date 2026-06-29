@@ -1,14 +1,21 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.ui.components.GlassSurface
 import com.example.viewmodel.MythicViewModel
@@ -48,6 +55,40 @@ fun ReportScreen(viewModel: MythicViewModel) {
                 fontStyle = FontStyle.Italic,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
+            
+            // Red blurred neon-style warning box
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF3A1111).copy(alpha = 0.5f))
+                    .border(
+                        width = 1.5.dp,
+                        color = Color(0xFFFF4D4D).copy(alpha = 0.7f),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .padding(16.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = "Warning",
+                        tint = Color(0xFFFF4D4D),
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Text(
+                        text = "Please note that there will be consequences to filling false reports and filling negative reports againts perfectly fine sites, You maybe punished in a court of law,",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = Color(0xFFFFD1D1),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    )
+                }
+            }
         }
 
         item {
@@ -101,8 +142,10 @@ fun ReportScreen(viewModel: MythicViewModel) {
                                     SupabaseReport(
                                         id = UUID.randomUUID().toString(),
                                         userId = currentUser!!.id,
-                                        contentId = contentId,
-                                        reason = reason,
+                                        siteName = contentId,
+                                        category = "General",
+                                        description = reason,
+                                        imageUrl = null,
                                         priority = priority,
                                         createdAt = null
                                     )
@@ -126,7 +169,7 @@ fun ReportScreen(viewModel: MythicViewModel) {
         items(recentReports) { report ->
             GlassSurface(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                 Text(
-                    text = "Report on ${report.contentId}: ${report.reason}",
+                    text = "Report on ${report.siteName}: ${report.description}",
                     color = Color.White,
                     modifier = Modifier.padding(16.dp)
                 )

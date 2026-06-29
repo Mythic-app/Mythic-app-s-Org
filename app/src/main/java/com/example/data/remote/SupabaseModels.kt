@@ -27,7 +27,7 @@ data class SupabaseUser(
     val id: String,
     val email: String?,
     @Json(name = "email_confirmed_at") val emailConfirmedAt: String? = null,
-    @Json(name = "user_metadata") val userMetadata: Map<String, String>? = null
+    @Json(name = "user_metadata") val userMetadata: Map<String, @JvmSuppressWildcards Any>? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -104,11 +104,52 @@ data class SupabaseLumoMessage(
 data class SupabaseReport(
     val id: String?,
     @Json(name = "user_id") val userId: String,
-    @Json(name = "content_id") val contentId: String,
-    val reason: String,
+    @Json(name = "site_name") val siteName: String,
+    val category: String,
+    val description: String,
+    @Json(name = "image_url") val imageUrl: String?,
+    @Json(name = "video_url") val videoUrl: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
     val priority: Float = 0.5f,
-    val status: String = "pending",
-    @Json(name = "created_at") val createdAt: String?
+    val status: String = "submitted",
+    @Json(name = "created_at") val createdAt: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class SupabaseReel(
+    val id: String?,
+    @Json(name = "user_id") val userId: String,
+    @Json(name = "site_name") val siteName: String,
+    val province: String,
+    val description: String,
+    @Json(name = "video_url") val videoUrl: String,
+    @Json(name = "thumbnail_url") val thumbnailUrl: String?,
+    val category: String,
+    val likes: Int = 0,
+    val shares: Int = 0,
+    val views: Int = 0,
+    @Json(name = "created_at") val createdAt: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class SupabaseComment(
+    val id: String?,
+    @Json(name = "reel_id") val reelId: String? = null,
+    @Json(name = "post_id") val postId: String? = null,
+    @Json(name = "user_id") val userId: String,
+    val content: String,
+    @Json(name = "created_at") val createdAt: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class SupabaseCommunityPost(
+    val id: String?,
+    @Json(name = "user_id") val userId: String,
+    val content: String,
+    @Json(name = "image_url") val imageUrl: String? = null,
+    val likes: Int = 0,
+    @Json(name = "created_at") val createdAt: String? = null
 )
 
 @JsonClass(generateAdapter = true)

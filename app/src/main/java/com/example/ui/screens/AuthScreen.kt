@@ -1,5 +1,9 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -69,23 +73,13 @@ fun AuthScreen(
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(top = 80.dp)
+                modifier = Modifier.padding(top = 40.dp)
             ) {
-                Text(
-                    text = "MYTHIC",
-                    style = MaterialTheme.typography.displayLarge.copy(
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 4.sp,
-                        color = Color(0xFF9AF04D)
-                    )
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Explore. Learn. Preserve.",
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        color = Color.Gray,
-                        letterSpacing = 2.sp
-                    )
+                AsyncImage(
+                    model = "https://res.cloudinary.com/dlr63wcmt/image/upload/v1782377619/Main_lmc9y6.png",
+                    contentDescription = "MYTHIC Logo",
+                    modifier = Modifier.height(110.dp),
+                    contentScale = ContentScale.Fit
                 )
             }
         }
@@ -133,6 +127,25 @@ fun AuthScreen(
                     style = MaterialTheme.typography.bodyMedium.copy(color = Color.LightGray),
                     textAlign = TextAlign.Center
                 )
+                
+                if (verificationSentEmail?.contains("mock", ignoreCase = true) == true || !com.example.data.remote.SupabaseClient.isConfigured) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Surface(
+                        color = Color(0xFF9AF04D).copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "DEMO MODE ACTIVE: No actual email will be sent. You can click 'Proceed to Login' and use your credentials immediately.",
+                            color = Color(0xFF9AF04D),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                }
+                
                 Spacer(modifier = Modifier.height(32.dp))
                 Button(
                     onClick = {

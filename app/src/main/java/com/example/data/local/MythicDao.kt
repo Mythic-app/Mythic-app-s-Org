@@ -81,6 +81,9 @@ interface MythicDao {
     @Query("SELECT * FROM lumo_conversations ORDER BY timestamp ASC")
     fun getLumoConversationsFlow(): Flow<List<LumoConversationEntity>>
 
+    @Query("SELECT * FROM lumo_conversations ORDER BY timestamp ASC")
+    suspend fun getLumoConversations(): List<LumoConversationEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLumoMessage(message: LumoConversationEntity)
 
